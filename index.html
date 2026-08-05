@@ -1,21 +1,40 @@
 <!DOCTYPE html>
 <html>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-  <head>
-    <meta charset="utf-8" />
-  	<!-- Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Grouped Layer Control plugin -->
-    <link rel="stylesheet" href="./src/leaflet.groupedlayercontrol.css" />
-    <script src="./src/leaflet.groupedlayercontrol.js"></script>
-    <link rel="stylesheet" type="text/css" href="./src/style.css">
-    <title>Mapa situace</title>
-  </head>
-  <body>
-	<div id="map"></div>
-    <script src="./src/map.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mapa situace</title>
+
+  <!-- 1. Leaflet (Core must load FIRST) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- 2. Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    crossorigin="" />
+
+  <!-- 3. GeoRaster (Parses TIFFs) -->
+  <script src="./src/georaster.browser.bundle.min.js"></script>
+
+  <!-- 4. GeoRaster Leaflet Plugin (Depends on Leaflet AND GeoRaster) -->
+  <script src="./src/georaster-layer-for-leaflet.min.js"></script>
+
+  <!-- 5. Grouped Layer Control plugin (Depends on Leaflet) -->
+  <link rel="stylesheet" href="./src/leaflet.groupedlayercontrol.css" />
+  <script src="./src/leaflet.groupedlayercontrol.js"></script>
+
+  <!-- 6. Custom Styles -->
+  <link rel="stylesheet" type="text/css" href="./src/style.css">
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <!-- 7. Map Application Logic -->
+  <script src="./src/map.js"></script>
+</body>
+
 </html>
