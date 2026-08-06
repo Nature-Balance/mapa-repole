@@ -3,7 +3,7 @@ var map = L.map('map').setView([48.802255, 16.96000], 14); // Hrušky
 // Array to track all dynamically loaded TIFFs
 var allRasterLayers = [];
 
-// Ikony (inline SVG, ať se nečeká na Font Awesome)
+// Icons for the layer control panel
 var icons = {
     layers: '<svg class="nb-panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5 2.5 6.5 10 10.5l7.5-4z"/><path d="m2.5 10 7.5 4 7.5-4"/><path d="m2.5 13.5 7.5 4 7.5-4"/></svg>',
     chevron: '<svg class="nb-panel-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg>',
@@ -20,13 +20,13 @@ logo.onAdd = function (map) {
 };
 logo.addTo(map);
 
-// Ovládací prvky mapy
+// Map controls
 map.attributionControl._attributions = {};
 map.attributionControl.setPrefix();
 map.zoomControl.setPosition('topleft');
 L.control.scale({ imperial: false, maxwidth: 200, position: 'bottomright' }).addTo(map);
 
-// Podkladová vrstva
+// Backdrop layers
 var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 });
@@ -36,10 +36,14 @@ var orthoLayer = L.tileLayer('https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTO
     maxZoom: 22
 }).addTo(map);
 
-var kmGridLayer = L.tileLayer('https://services.cuzk.gov.cz/wmts/local-km-wmts-google/rest/WMTS/tile/1.0.0/local-km/default/GoogleMapsCompatible/{z}/{y}/{x}.png', {
-    attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK</a>',
-    minZoom: 17,
-    maxZoom: 25
+// WMS layers
+
+var kmGridLayer = L.tileLayer.wms("https://services.cuzk.cz/wms/local-km-wms.asp", {
+    layers: 'KN_I',
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK</a>'
 });
 
 var eagriOLNej = L.tileLayer.wms("https://mze.gov.cz/public/app/wms/plpis.fcgi", {
@@ -107,6 +111,24 @@ var zabagedVrstevnice = L.tileLayer.wms("https://ags.cuzk.gov.cz/arcgis/services
     transparent: true,
     version: '1.3.0',
     attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK</a>',
+    tiled: true
+});
+
+var sklonitostSvahu = L.tileLayer.wms("https://ags.cuzk.gov.cz/arcgis2/services/dmr5g/ImageServer/WMSServer", {
+    layers: 'dmr5g:SlopeRGBMap2',
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK DMR 5G</a>',
+    tiled: true
+});
+
+var orientaceSvahu = L.tileLayer.wms("https://ags.cuzk.gov.cz/arcgis2/services/dmr5g/ImageServer/WMSServer", {
+    layers: 'dmr5g:AspectRGBMap',
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK DMR 5G</a>',
     tiled: true
 });
 
@@ -180,7 +202,7 @@ var zrnitostPodornici = L.tileLayer.wms("https://kpp.vumop.cz/wms/kpp.php?langua
     tiled: true
 });
 
-// Vytvoření geoJSON vrstvy pro vybranou parcelu
+// Vector layers
 var parcela = L.geoJSON(null, {
     style: function (feature) {
         return {
@@ -201,7 +223,6 @@ var parcela = L.geoJSON(null, {
     }
 }).addTo(map);
 
-// Vytvoření geoJSON vrstvy pro katastrální území
 var ku = L.geoJSON(null, {
     style: function (feature) {
         return {
@@ -222,7 +243,7 @@ var ku = L.geoJSON(null, {
     }
 }).addTo(map);
 
-// Přepínač vrstev
+// Layer control list
 var baseMaps = {
     "OpenStreetMaps": osmLayer,
     "Ortofoto": orthoLayer
@@ -233,6 +254,8 @@ var groupedOverlays = {
         "Vybraná parcela": parcela,
         "Katastrální území": ku,
         "Katastrální mapa": kmGridLayer,
+        "Sklonitost svahu": sklonitostSvahu,
+        "Orientace svahu": orientaceSvahu,
         "Eroze - odtokové linie - nejdelší krit. délka": eagriOLNej,
         "Eroze - odtokové linie": eagriOL,
         "Hloubka půdy": hloubkaPud,
@@ -245,25 +268,21 @@ var groupedOverlays = {
         "DPB účinné": eagriDPBuc,
         "DPB uživatel": eagriDPBuziv,
         "LPIS výměra": eagriLPISVym,
-        "Stupeň, sráz - ZABAGED": zabagedSraz,
-        "Vrstevnice - ZABAGED": zabagedVrstevnice
+        "Vrstevnice - ZABAGED": zabagedVrstevnice,
+        "Stupeň, sráz - ZABAGED": zabagedSraz
     },
     "RYPE": {}
 };
 
-
-// Initialize the control immediately
 var layerControl = L.control.groupedLayers(baseMaps, groupedOverlays, {
     collapsed: false,
     collapsible: true,
     exclusiveGroups: ["RYPE"]
 }).addTo(map);
 
-// Skupiny, které mají být po startu sbalené (klíč = název skupiny)
 var foldedGroups = { "Podkladové vrstvy": true };
 
-// Zvýraznění zapnutých vrstev. Čte se stav inputu, který sedí jak po překreslení
-// panelu (_update nastaví checked podle mapy), tak po kliknutí uživatele.
+// Mark active layers in the control panel 
 function markActiveLayers() {
     var inputs = layerControl._container.querySelectorAll('.leaflet-control-layers-selector');
     for (var i = 0; i < inputs.length; i++) {
@@ -271,11 +290,10 @@ function markActiveLayers() {
     }
 }
 
-// Hlavička panelu a sbalovací skupiny.
+// Header and group folding for the layer control panel
 function decoratePanel() {
     var container = layerControl._container;
 
-    // Hlavička se vkládá jen jednou - _update() přepisuje pouze obsah formuláře
     if (!container.querySelector('.nb-panel-header')) {
         var header = L.DomUtil.create('div', 'nb-panel-header');
         header.innerHTML = icons.layers + '<span class="nb-panel-title">Vrstvy</span>' + icons.chevron;
@@ -286,7 +304,6 @@ function decoratePanel() {
         });
     }
 
-    // Skupiny naopak _update() vytváří znovu, takže se dekorují pokaždé
     var groups = container.querySelectorAll('.leaflet-control-layers-group');
     Array.prototype.forEach.call(groups, function (group) {
         var label = group.querySelector('.leaflet-control-layers-group-label');
@@ -307,10 +324,7 @@ function decoratePanel() {
     markActiveLayers();
 }
 
-// Rastry se stahují asynchronně, takže se do panelu zapisují v pořadí, v jakém
-// dorazí ze sítě. Před každým překreslením je přerovnáme podle nbOrder, což je
-// pořadí volání v kódu. Ostatní vrstvy zůstávají na svých místech - entries se
-// zapisují zpět jen do slotů, které rastry už zabíraly.
+// Raster loading and sorting
 function sortRasterLayers() {
     var slots = [];
     var entries = [];
@@ -336,7 +350,6 @@ layerControl._update = function () {
 decoratePanel();
 map.on('layeradd layerremove', markActiveLayers);
 
-// funkce pro načtení geojson souboru
 function loadGeoJSON(url, layer) {
     fetch(url)
         .then(response => response.json())
@@ -344,39 +357,14 @@ function loadGeoJSON(url, layer) {
         .catch(error => console.error(`Error loading ${url}:`, error));
 }
 
-// funkce pro načtení barvy parcely podle atributu
-function getColor(property) {
-    return property == 2 ? '#cc7d0f' :
-        property == 4 ? '#c3e332' :
-            property == 5 ? '#9fe8ba' :
-                property == 6 ? '#89eae8' :
-                    property == 7 ? '#90ce45' :
-                        property == 10 ? '#068246' :
-                            property == 11 ? '#66a3c9' :
-                                property == 13 ? '#a5aaa8' :
-                                    property == 14 ? '#d0b7c7' :
-                                        '#ffffff';
-};
-
-// Vlastní pane pro rastry - nad WMS vrstvami (tilePane, 200), pod vektory (overlayPane, 400)
+// New Raster pane for tiff layers
 map.createPane('rasterPane');
 map.getPane('rasterPane').style.zIndex = 350;
 map.getPane('rasterPane').style.pointerEvents = 'none';
 
-// GeoRasterLayer 1.4.1 volá done() synchronně uvnitř createTile(), tedy dřív než
-// Leaflet dlaždici zaregistruje do _tiles. GridLayer._tileReady proto skončí hned
-// na `if (!tile) return` a dlaždice nikdy nedostane příznak loaded/active.
-// Důsledek: fade-in zamrzne na náhodné průhlednosti a _pruneTiles() nikdy neuklidí
-// staré úrovně zoomu - na mapě zůstanou 2-3 kopie rastru přes sebe a každá si
-// při zoomu animuje vlastní transform. To je to "cukání".
-// Odložení done() o jeden tick vrátí dlaždice do normálního životního cyklu.
+// Asynchronous tile creation for GeoRasterLayer
 var StableGeoRasterLayer = GeoRasterLayer.extend({
     initialize: function (options) {
-        // Cache dlaždic drží GeoRasterLayer na prototypu a klíčuje ji pouze
-        // souřadnicemi dlaždice a rozlišením, bez identity vrstvy. Všechny
-        // instance si tak navzájem podstrkávají cizí dlaždice - přepnutí na
-        // jinou vrstvu RYPE pak vykreslí data té předchozí. Vlastní cache
-        // pro každou instanci.
         this.cache = {};
         GeoRasterLayer.prototype.initialize.call(this, options);
     },
@@ -388,15 +376,13 @@ var StableGeoRasterLayer = GeoRasterLayer.extend({
     }
 });
 
-// Barevné škály rastrů
+// Color scales for EVI and Yield
 var EVI_COLORS = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
 var YIELD_COLORS = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
 
-// Pořadí rastrů v panelu - přiřazuje se hned při volání, ne až po stažení dat
 var rasterOrder = 0;
 
-// Společná tovární funkce pro rastrové vrstvy.
-// `legend` popisuje škálu pro legendu: { colors, min, mid, max, unit }
+// Create a raster layer from a GeoTIFF URL
 function createRasterLayer(url, layerName, pixelValuesToColorFn, legend, label) {
     var order = rasterOrder++;
 
@@ -417,29 +403,25 @@ function createRasterLayer(url, layerName, pixelValuesToColorFn, legend, label) 
             tiffLayer.nbLegend = legend;
             tiffLayer.nbOrder = order;
             allRasterLayers.push(tiffLayer);
-            // INJECT DIRECTLY INTO THE MENU UNDER "RYPE"
             layerControl.addOverlay(tiffLayer, layerName, "RYPE");
         })
         .catch(error => console.error(`Error loading ${label}:`, error));
 }
 
-// Zařazení hodnoty do jednoho z osmi barevných kroků
+// Raster coloring
 function rampColor(ratio, colors) {
     var index = Math.floor(Math.max(0, Math.min(1, ratio)) * colors.length);
     if (index >= colors.length) index = colors.length - 1;
     return colors[index];
 }
 
-// Divergentní škála: `mid` padne přesně doprostřed barevné škály, obě poloviny
-// se roztáhnou nezávisle. Pro výnos tak průměr (100) leží uprostřed legendy
-// i když není aritmetickým středem rozsahu min-max.
 function divergingRatio(val, min, mid, max) {
     return val < mid
         ? 0.5 * (val - min) / (mid - min)
         : 0.5 + 0.5 * (val - mid) / (max - mid);
 }
 
-// 1. FUNCTION FOR EVI
+// FUNCTION FOR EVI
 function createEVIlayer(url, layerName) {
     createRasterLayer(url, layerName, function (val, georaster) {
         if (val === georaster.noDataValue || isNaN(val)) return null;
@@ -448,7 +430,7 @@ function createEVIlayer(url, layerName) {
     }, { colors: EVI_COLORS, min: 0, max: 1, unit: '' }, 'EVI');
 }
 
-// 2. FUNCTION FOR YIELD
+// FUNCTION FOR YIELD
 function createYieldLayer(url, layerName) {
     var min = 78;
     var mid = 100;
@@ -476,57 +458,7 @@ createEVIlayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/mai
 loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/ku.geojson', ku);
 loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/parcela.geojson', parcela);
 
-/*
-var overlayMaps = {
-    "Navržená opatření": parcelyNavrhOpatreni,
-    "Protierozní opatření": parcelyErozniOpatreni,
-    //"Parcely podle druhu pozemku": parcelyDP,
-    "Eroze - odtokové linie - nejdelší kritická délka OL": eagriOLNej,
-    "Eroze - odtokové linie": eagriOL,
-    "DPB účinné - kód": eagriDPBucKod,
-    "DPB účinné": eagriDPBuc,
-    "LPIS výměra": eagriLPISVym,
-    "Stupeň, sráz - ZABAGED": zabagedSraz,
-    //"Katastrální mapa": kmGridLayer,
-};
-*/
-
-/*
-//Legenda druh pozemku
-var legend = L.control({position: 'bottomright'});
-legend.onAdd = function (map) {
-    var div = L.DomUtil.create('div', 'info legend'),
-        druhyP = [2, 4, 5, 6, 7, 10, 11, 13, 14];
-        druhyPlabels = ['orná půda', 'vinice', 'zahrada', 'ovocný sad', 'trvalý travní porost', 'lesní pozemek', 'vodní plocha', 'zastavěná plocha a nádvoří', 'ostatní plocha'];
-    div.innerHTML += '<h4>Parcely podle druhu pozemku</h4>';
-    for (var i = 0; i < druhyP.length; i++) {
-        div.innerHTML +=
-            '<i style="background:' + getColor(druhyP[i]) + '"></i> ' +
-            (druhyPlabels[i]) + '<br>';
-    }
-    return div;
-};
-
-
-//Legenda navržená opatření
-var legendNavrhOpatreni = L.control({position: 'bottomright'});
-legendNavrhOpatreni.onAdd = function (map) {
-    var div = L.DomUtil.create('div', 'info legend'),
-        druhyNO = ['PC', 'VL', 'BK', 'BC', 'RL', 'DR', 'NULL', 'SM'];
-        druhyNOlabels = ['polní cesta', 'větrolam', 'biokoridor', 'biocentrum', 'rozvojová plocha', 'územní rezerva',  'neposuzovaná plocha', 'směna ZPF (návrh)'];
-    div.innerHTML += '<h4>Navržená opatření</h4>';
-    for (var i = 0; i < druhyNO.length; i++) {
-        div.innerHTML +=
-            '<i style="background:' + getColorNavrzenaOpatreni(druhyNO[i]) + '"></i> ' +
-            (druhyNOlabels[i]) + '<br>';
-    }
-    return div;
-};
-
-legendNavrhOpatreni.addTo(map);
-*/
-
-// Zobrazit legendu, pokud je aktivní vrstva
+// Display legend if the layer is active
 function toggleLegend(layerName, legendName) {
     if (map.hasLayer(layerName)) {
         legendName.addTo(map);
@@ -535,30 +467,21 @@ function toggleLegend(layerName, legendName) {
     }
 };
 
-// Přidání legendy do mapy
+// Add map legend
 
-//WMS legendy
+//WMS legends
 var wmsLegend = L.control({ position: 'bottomleft' });
 
 var activeWmsLayers = {};
 
 wmsLegend.onAdd = function (map) {
-    // Create the container div
     this._div = L.DomUtil.create('div', 'dynamic-wms-legend');
-    this._div.style.display = 'none';    // Hide it initially
-
-    // Stop map clicks from falling through the legend box
+    this._div.style.display = 'none';
     L.DomEvent.disableClickPropagation(this._div);
     L.DomEvent.disableScrollPropagation(this._div);
-
-    // Create a Clickable Header
     var header = L.DomUtil.create('div', 'legend-header', this._div);
     header.innerHTML = '<span>Legenda</span>' + icons.chevronLegend;
-
-    // Create the Content Area (where the images will go)
     this._contentDiv = L.DomUtil.create('div', 'legend-content', this._div);
-
-    // Toggle Collapse/Expand on header click
     L.DomEvent.on(header, 'click', function () {
         this._div.classList.toggle('nb-minimized');
     }, this);
@@ -568,12 +491,9 @@ wmsLegend.onAdd = function (map) {
 
 wmsLegend.addTo(map);
 
-// Legenda WMS vrstvy - obrázek ze služby GetLegendGraphic
+// Legends for WMS layers - GetLegendGraphic
 function wmsLegendHtml(layer) {
-    // Safely handle the base URL (check if it already has a '?' query string)
     var separator = layer._url.indexOf('?') === -1 ? '?' : '&';
-
-    // Auto-construct the GetLegendGraphic URL using the layer's own properties
     var legendUrl = layer._url + separator +
         "SERVICE=WMS&REQUEST=GetLegendGraphic" +
         "&VERSION=" + (layer.wmsParams.version || "1.3.0") +
@@ -584,8 +504,7 @@ function wmsLegendHtml(layer) {
     return '<img src="' + legendUrl + '" alt="Legenda">';
 }
 
-// Legenda rastru RYPE - barevná škála s krajními hodnotami
-// a u divergentní škály i s hodnotou uprostřed
+// Legend for RYPE
 function rampLegendHtml(legend) {
     var swatches = legend.colors.map(function (color) {
         return '<span style="background:' + color + '"></span>';
@@ -605,7 +524,6 @@ function updateLegendBox() {
     var html = '';
     var hasLegends = false;
 
-    // Loop through all currently active layers that have a legend
     for (var id in activeWmsLayers) {
         var layerInfo = activeWmsLayers[id];
         var layer = layerInfo.layer;
@@ -618,20 +536,16 @@ function updateLegendBox() {
         hasLegends = true;
     }
 
-    // Update only the content area, not the whole div
     if (wmsLegend._contentDiv) {
         wmsLegend._contentDiv.innerHTML = html;
     }
 
-    // Show/hide the entire control based on if any layers are active
     wmsLegend._div.style.display = hasLegends ? 'block' : 'none';
 }
 
 // Listen to map events to know when layers turn on and off
 
-// When a layer is turned on via the layer control
 map.on('overlayadd', function (e) {
-    // 1. LEGEND LOGIC: WMS vrstva nebo rastr RYPE s vlastní škálou
     if (e.layer.wmsParams || e.layer.nbLegend) {
         activeWmsLayers[L.stamp(e.layer)] = {
             layer: e.layer,
@@ -640,10 +554,8 @@ map.on('overlayadd', function (e) {
         updateLegendBox();
     }
 
-    // 2. RASTER ENFORCER LOGIC: Check if it is one of our TIFFs
     if (typeof allRasterLayers !== 'undefined' && allRasterLayers.includes(e.layer)) {
         allRasterLayers.forEach(function (layer) {
-            // Remove any other TIFF currently sitting on the map
             if (layer !== e.layer && map.hasLayer(layer)) {
                 map.removeLayer(layer);
             }
@@ -651,20 +563,9 @@ map.on('overlayadd', function (e) {
     }
 });
 
-// When a layer is turned off
 map.on('overlayremove', function (e) {
     if (e.layer.wmsParams || e.layer.nbLegend) {
-        // Remove it from our active list
         delete activeWmsLayers[L.stamp(e.layer)];
         updateLegendBox();
     }
 });
-
-
-/*
-parcelyDP.on('add', function () { toggleLegend(parcelyDP, legend); });
-parcelyDP.on('remove', function () { toggleLegend(parcelyDP, legend); });
-
-parcelyNavrhOpatreni.on('add', function () { toggleLegend(parcelyNavrhOpatreni, legendNavrhOpatreni); });
-parcelyNavrhOpatreni.on('remove', function () { toggleLegend(parcelyNavrhOpatreni, legendNavrhOpatreni); });
-*/
