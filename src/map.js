@@ -93,6 +93,15 @@ var zabagedSraz = L.tileLayer.wms("https://ags.cuzk.gov.cz/arcgis/services/ZABAG
     tiled: true
 });
 
+var zabagedVrstevnice = L.tileLayer.wms("https://ags.cuzk.gov.cz/arcgis/services/ZABAGED_VRSTEVNICE/MapServer/WmsServer", {
+    layers: '0',
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    attribution: '&copy; <a href="https://www.cuzk.cz">ČÚZK</a>',
+    tiled: true
+});
+
 var hloubkaPud = L.tileLayer.wms("https://kpp.vumop.cz/wms/kpp.php?language=cze", {
     layers: 'hloubka_vektor',
     format: 'image/png',
@@ -228,7 +237,8 @@ var groupedOverlays = {
         "DPB účinné": eagriDPBuc,
         "DPB uživatel": eagriDPBuziv,
         "LPIS výměra": eagriLPISVym,
-        "Stupeň, sráz - ZABAGED": zabagedSraz
+        "Stupeň, sráz - ZABAGED": zabagedSraz,
+        "Vrstevnice - ZABAGED": zabagedVrstevnice
     },
     "RYPE": {}
 };
