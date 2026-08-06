@@ -330,6 +330,10 @@ createEVIlayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/mai
 createEVIlayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/feature_1_2024_evi.tif', 'EVI index 2024');
 createEVIlayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/feature_1_2025_evi.tif', 'EVI index 2025');
 
+// Load the GeoJSON data into the initialized layers
+loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/ku.geojson', ku);
+loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/parcela.geojson', parcela);
+
 // Přepínač vrstev
 var baseMaps = {
     "OpenStreetMaps": osmLayer,
@@ -496,14 +500,23 @@ function updateLegendBox() {
 
 // When a layer is turned on via the layer control
 map.on('overlayadd', function (e) {
-    // Check if the layer is a WMS layer (it will have wmsParams)
+    // 1. LEGEND LOGIC: Check if it is a WMS layer
     if (e.layer.wmsParams) {
-        // Store it using Leaflet's unique internal ID (L.stamp)
         activeWmsLayers[L.stamp(e.layer)] = {
             layer: e.layer,
-            name: e.name // The readable name from your layer control (e.g., "Hloubka půdy")
+            name: e.name
         };
         updateLegendBox();
+    }
+
+    // 2. RASTER ENFORCER LOGIC: Check if it is one of our TIFFs
+    if (typeof allRasterLayers !== 'undefined' && allRasterLayers.includes(e.layer)) {
+        allRasterLayers.forEach(function (layer) {
+            // Remove any other TIFF currently sitting on the map
+            if (layer !== e.layer && map.hasLayer(layer)) {
+                map.removeLayer(layer);
+            }
+        });
     }
 });
 
@@ -524,18 +537,3 @@ parcelyDP.on('remove', function () { toggleLegend(parcelyDP, legend); });
 parcelyNavrhOpatreni.on('add', function () { toggleLegend(parcelyNavrhOpatreni, legendNavrhOpatreni); });
 parcelyNavrhOpatreni.on('remove', function () { toggleLegend(parcelyNavrhOpatreni, legendNavrhOpatreni); });
 */
-
-// Bulletproof layer enforcer: Prevents raster Z-fighting
-map.on('overlayadd', function (e) {
-    // Check if the layer that was just turned on is one of our TIFFs
-    if (allRasterLayers.includes(e.layer)) {
-        // Loop through every TIFF we have generated
-        allRasterLayers.forEach(function (layer) {
-            // If the layer is currently on the map, AND it is not the one we just clicked...
-            if (layer !== e.layer && map.hasLayer(layer)) {
-                // Forcefully remove it from the map
-                map.removeLayer(layer);
-            }
-        });
-    }
-});
