@@ -307,8 +307,28 @@ function decoratePanel() {
     markActiveLayers();
 }
 
+// Rastry se stahují asynchronně, takže se do panelu zapisují v pořadí, v jakém
+// dorazí ze sítě. Před každým překreslením je přerovnáme podle nbOrder, což je
+// pořadí volání v kódu. Ostatní vrstvy zůstávají na svých místech - entries se
+// zapisují zpět jen do slotů, které rastry už zabíraly.
+function sortRasterLayers() {
+    var slots = [];
+    var entries = [];
+
+    layerControl._layers.forEach(function (entry, i) {
+        if (entry && entry.layer.nbOrder !== undefined) {
+            slots.push(i);
+            entries.push(entry);
+        }
+    });
+
+    entries.sort(function (a, b) { return a.layer.nbOrder - b.layer.nbOrder; });
+    slots.forEach(function (slot, i) { layerControl._layers[slot] = entries[i]; });
+}
+
 var origLayerControlUpdate = layerControl._update;
 layerControl._update = function () {
+    sortRasterLayers();
     origLayerControlUpdate.call(this);
     decoratePanel();
 };
@@ -372,9 +392,14 @@ var StableGeoRasterLayer = GeoRasterLayer.extend({
 var EVI_COLORS = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
 var YIELD_COLORS = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
 
+// Pořadí rastrů v panelu - přiřazuje se hned při volání, ne až po stažení dat
+var rasterOrder = 0;
+
 // Společná tovární funkce pro rastrové vrstvy.
-// `legend` popisuje škálu pro legendu: { colors, min, max, unit }
+// `legend` popisuje škálu pro legendu: { colors, min, mid, max, unit }
 function createRasterLayer(url, layerName, pixelValuesToColorFn, legend, label) {
+    var order = rasterOrder++;
+
     fetch(url)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => parseGeoraster(arrayBuffer))
@@ -384,11 +409,13 @@ function createRasterLayer(url, layerName, pixelValuesToColorFn, legend, label) 
                 opacity: 0.8,
                 resolution: 256,
                 pane: 'rasterPane',
+                attribution: 'RYPE',
                 pixelValuesToColorFn: function (pixelValues) {
                     return pixelValuesToColorFn(pixelValues[0], georaster);
                 }
             });
             tiffLayer.nbLegend = legend;
+            tiffLayer.nbOrder = order;
             allRasterLayers.push(tiffLayer);
             // INJECT DIRECTLY INTO THE MENU UNDER "RYPE"
             layerControl.addOverlay(tiffLayer, layerName, "RYPE");
@@ -403,6 +430,15 @@ function rampColor(ratio, colors) {
     return colors[index];
 }
 
+// Divergentní škála: `mid` padne přesně doprostřed barevné škály, obě poloviny
+// se roztáhnou nezávisle. Pro výnos tak průměr (100) leží uprostřed legendy
+// i když není aritmetickým středem rozsahu min-max.
+function divergingRatio(val, min, mid, max) {
+    return val < mid
+        ? 0.5 * (val - min) / (mid - min)
+        : 0.5 + 0.5 * (val - mid) / (max - mid);
+}
+
 // 1. FUNCTION FOR EVI
 function createEVIlayer(url, layerName) {
     createRasterLayer(url, layerName, function (val, georaster) {
@@ -415,13 +451,14 @@ function createEVIlayer(url, layerName) {
 // 2. FUNCTION FOR YIELD
 function createYieldLayer(url, layerName) {
     var min = 78;
+    var mid = 100;
     var max = 115;
 
     createRasterLayer(url, layerName, function (val, georaster) {
         if (val === georaster.noDataValue || isNaN(val)) return null;
 
-        return rampColor((val - min) / (max - min), YIELD_COLORS);
-    }, { colors: YIELD_COLORS, min: min, max: max, unit: '' }, 'Yield');
+        return rampColor(divergingRatio(val, min, mid, max), YIELD_COLORS);
+    }, { colors: YIELD_COLORS, min: min, mid: mid, max: max, unit: '' }, 'Yield');
 }
 
 createYieldLayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/feature_1_yield_2018_2025.tif', 'Average yield 2018-2025');
@@ -548,14 +585,19 @@ function wmsLegendHtml(layer) {
 }
 
 // Legenda rastru RYPE - barevná škála s krajními hodnotami
+// a u divergentní škály i s hodnotou uprostřed
 function rampLegendHtml(legend) {
     var swatches = legend.colors.map(function (color) {
         return '<span style="background:' + color + '"></span>';
     }).join('');
 
+    var ticks = [legend.min, legend.mid, legend.max]
+        .filter(function (value) { return value !== undefined; })
+        .map(function (value) { return '<span>' + value + legend.unit + '</span>'; })
+        .join('');
+
     return '<div class="legend-ramp">' + swatches + '</div>' +
-        '<div class="legend-scale"><span>' + legend.min + legend.unit +
-        '</span><span>' + legend.max + legend.unit + '</span></div>';
+        '<div class="legend-scale">' + ticks + '</div>';
 }
 
 // Function to redraw the legend box based on active layers

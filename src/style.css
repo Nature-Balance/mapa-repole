@@ -54,7 +54,7 @@ body {
 .leaflet-control-layers,
 .leaflet-control-zoom,
 .dynamic-wms-legend,
-.leaflet-control-scale-line,
+.leaflet-control-scale,
 .leaflet-control-attribution {
   background: var(--nb-surface);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
@@ -463,25 +463,37 @@ input.leaflet-control-layers-selector[type="radio"]:checked {
    Měřítko a atribuce
    -------------------------------------------------------------------------- */
 
+/* Panel nese pozadí a rámeček, měřítková čára uvnitř kreslí sama sebe
+   vlastními okraji. Proto musí mít panel odsazení - jinak čára splyne
+   s hranou bílého podkladu a zmizí. */
 .leaflet-control-scale {
+  border-radius: var(--nb-radius-sm);
+  padding: 5px 9px 6px;
   margin-bottom: 6px !important;
+  line-height: 0;
 }
 
 .leaflet-control-scale-line {
-  padding: 2px 8px 3px;
-  border-radius: var(--nb-radius-sm);
-  border: 1px solid var(--nb-ring);
+  background: none;
+  border: 2px solid var(--nb-ink);
   border-top: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1px 5px 2px;
   font-size: 10.5px;
-  font-weight: 500;
-  line-height: 1.3;
-  color: var(--nb-ink-muted);
-  box-shadow: var(--nb-shadow);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--nb-ink);
+  text-align: center;
+  text-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .leaflet-control-scale-line:not(:first-child) {
-  border-top: 1px solid var(--nb-hairline);
-  margin-top: 2px;
+  border-top: 2px solid var(--nb-ink);
+  border-bottom: none;
+  margin-top: 3px;
 }
 
 .leaflet-control-attribution {
