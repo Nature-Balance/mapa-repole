@@ -1,64 +1,568 @@
+/* ==========================================================================
+   Mapa situace - Nature Balance
+   Světlé prosklené panely se zeleným akcentem.
+   ========================================================================== */
+
+:root {
+  /* Povrchy */
+  --nb-surface: rgba(255, 255, 255, 0.86);
+  --nb-surface-solid: #ffffff;
+  --nb-surface-hover: rgba(23, 42, 31, 0.05);
+  --nb-hairline: rgba(23, 42, 31, 0.10);
+  --nb-ring: rgba(255, 255, 255, 0.65);
+  --nb-shadow: 0 4px 24px rgba(16, 24, 32, 0.18), 0 1px 2px rgba(16, 24, 32, 0.10);
+
+  /* Text */
+  --nb-ink: #1b2126;
+  --nb-ink-muted: #5d6a72;
+
+  /* Akcent */
+  --nb-accent: #2f8f4e;
+  --nb-accent-strong: #24713d;
+  --nb-accent-soft: rgba(47, 143, 78, 0.10);
+
+  /* Vektory na mapě */
+  --nb-vector: #0afff5;
+
+  --nb-radius: 12px;
+  --nb-radius-sm: 8px;
+  --nb-gap: 10px;
+
+  --nb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 #map {
   position: absolute;
-  background-color: white;
-  top: 0;
-  bottom: 0;
-  width: 99%;
+  inset: 0;
+  background-color: #eceff1;
+  font-family: var(--nb-font);
 }
 
-.leaflet-left .leaflet-control-scale {
-	display: inline-block;
-	float: none;
+/* --------------------------------------------------------------------------
+   Sdílený vzhled panelů
+   -------------------------------------------------------------------------- */
+
+.nb-panel,
+.leaflet-control-layers,
+.leaflet-control-zoom,
+.dynamic-wms-legend,
+.leaflet-control-scale-line,
+.leaflet-control-attribution {
+  background: var(--nb-surface);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--nb-ring);
+  box-shadow: var(--nb-shadow);
+  border-radius: var(--nb-radius);
+  color: var(--nb-ink);
+  font-family: var(--nb-font);
 }
+
+.leaflet-control {
+  margin: var(--nb-gap) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Logo
+   -------------------------------------------------------------------------- */
+
+.nb-logo {
+  padding: 10px 14px;
+  line-height: 0;
+}
+
+.nb-logo img {
+  display: block;
+  width: 132px;
+  height: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Zoom
+   -------------------------------------------------------------------------- */
+
+.leaflet-control-zoom {
+  overflow: hidden;
+  border-radius: var(--nb-radius-sm);
+}
+
+.leaflet-touch .leaflet-bar {
+  border: 1px solid var(--nb-ring);
+}
+
+.leaflet-control-zoom a,
+.leaflet-touch .leaflet-control-zoom a {
+  width: 32px;
+  height: 32px;
+  line-height: 30px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--nb-ink);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.leaflet-control-zoom a + a {
+  border-top: 1px solid var(--nb-hairline);
+}
+
+.leaflet-control-zoom a:hover,
+.leaflet-control-zoom a:focus-visible {
+  background: var(--nb-accent-soft);
+  color: var(--nb-accent-strong);
+}
+
+.leaflet-control-zoom a.leaflet-disabled {
+  color: rgba(93, 106, 114, 0.4);
+  background: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Panel vrstev
+   -------------------------------------------------------------------------- */
+
+.leaflet-control-layers {
+  overflow: hidden;
+  width: 272px;
+  transition: width 0.18s ease;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 0;
+  background: var(--nb-surface);
+  color: var(--nb-ink);
+}
+
+/* Hlavička s přepínačem - vkládá se v map.js */
+.nb-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.nb-panel-header:hover {
+  background: var(--nb-surface-hover);
+}
+
+.nb-panel-header .nb-panel-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--nb-accent);
+}
+
+.nb-panel-title {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nb-panel-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--nb-ink-muted);
+  transition: transform 0.18s ease;
+}
+
+/* Sbalený panel - zůstane jen ikona */
+.leaflet-control-layers.nb-collapsed {
+  width: 42px;
+}
+
+.nb-collapsed .leaflet-control-layers-list {
+  display: none;
+}
+
+.nb-collapsed .nb-panel-title,
+.nb-collapsed .nb-panel-chevron {
+  display: none;
+}
+
+.nb-collapsed .nb-panel-header {
+  justify-content: center;
+  padding: 11px;
+}
+
+.leaflet-control-layers-list {
+  border-top: 1px solid var(--nb-hairline);
+  padding: 6px 0 8px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.leaflet-control-layers-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.leaflet-control-layers-list::-webkit-scrollbar-thumb {
+  background: rgba(23, 42, 31, 0.18);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Leaflet oddělovač mezi podklady a překryvy nepotřebujeme, sekce mají nadpisy */
+.leaflet-control-layers-separator {
+  display: none;
+}
+
+/* Nadpisy sekcí */
+.leaflet-control-layers-base::before,
+.leaflet-control-layers-group-name {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nb-ink-muted);
+}
+
+.leaflet-control-layers-base::before {
+  content: "Podklad";
+  padding: 8px 14px 4px;
+}
+
+/* Leaflet nastavuje `.leaflet-control-layers label { display: block }`, proto
+   je u řádků i nadpisů skupin potřeba stejně specifický selektor. */
+.leaflet-control-layers .leaflet-control-layers-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px 4px;
+  cursor: pointer;
+}
+
+.leaflet-control-layers .leaflet-control-layers-group-label:hover {
+  background: var(--nb-surface-hover);
+}
+
+.leaflet-control-layers-group-name {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.nb-group-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--nb-ink-muted);
+  transition: transform 0.18s ease;
+}
+
+.leaflet-control-layers-group.nb-folded .nb-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.leaflet-control-layers-group.nb-folded > label:not(.leaflet-control-layers-group-label) {
+  display: none;
+}
+
+.leaflet-control-layers-group {
+  margin: 0;
+}
+
+.leaflet-control-layers-group + .leaflet-control-layers-group {
+  border-top: 1px solid var(--nb-hairline);
+  margin-top: 4px;
+}
+
+/* Řádky vrstev */
+.leaflet-control-layers-base label,
+.leaflet-control-layers-group > label:not(.leaflet-control-layers-group-label) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 5px 14px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--nb-ink);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.leaflet-control-layers-base label:hover,
+.leaflet-control-layers-group > label:not(.leaflet-control-layers-group-label):hover {
+  background: var(--nb-surface-hover);
+}
+
+.leaflet-control-layers-base label span,
+.leaflet-control-layers-group > label span {
+  flex: 1 1 auto;
+}
+
+/* Aktivní řádek - třídu doplňuje map.js */
+.leaflet-control-layers label.nb-active {
+  background: var(--nb-accent-soft);
+  color: var(--nb-accent-strong);
+  font-weight: 500;
+}
+
+/* Vlastní přepínače */
+.leaflet-control-layers-selector {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  top: 0;
+  border: 1.5px solid rgba(23, 42, 31, 0.32);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+input.leaflet-control-layers-selector[type="checkbox"] {
+  border-radius: 4px;
+}
+
+input.leaflet-control-layers-selector[type="radio"] {
+  border-radius: 50%;
+}
+
+.leaflet-control-layers-selector:hover {
+  border-color: var(--nb-accent);
+}
+
+.leaflet-control-layers-selector:checked {
+  border-color: var(--nb-accent);
+  background-color: var(--nb-accent);
+}
+
+/* Zaškrtnutí */
+input.leaflet-control-layers-selector[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.2l2.3 2.3 4.7-4.9'/%3E%3C/svg%3E");
+  background-size: 100%;
+  background-repeat: no-repeat;
+}
+
+/* Tečka uvnitř přepínače */
+input.leaflet-control-layers-selector[type="radio"]:checked {
+  background-image: radial-gradient(circle, #fff 0 2.6px, transparent 2.9px);
+}
+
+.leaflet-control-layers-selector:focus-visible {
+  outline: 2px solid var(--nb-accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Legenda
+   -------------------------------------------------------------------------- */
+
+.dynamic-wms-legend {
+  width: 232px;
+  overflow: hidden;
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.legend-header:hover {
+  background: var(--nb-surface-hover);
+}
+
+.legend-toggle-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--nb-ink-muted);
+  transition: transform 0.18s ease;
+}
+
+.dynamic-wms-legend.nb-minimized .legend-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.dynamic-wms-legend.nb-minimized .legend-content {
+  display: none;
+}
+
+.legend-content {
+  border-top: 1px solid var(--nb-hairline);
+  padding: 4px 12px 10px;
+  max-height: min(340px, calc(100vh - 200px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.legend-item + .legend-item {
+  border-top: 1px solid var(--nb-hairline);
+}
+
+.legend-item {
+  padding: 9px 0 2px;
+}
+
+.legend-item-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nb-ink);
+  margin-bottom: 6px;
+}
+
+.legend-item img {
+  display: block;
+  max-width: 100%;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* Barevná škála rastrů RYPE */
+.legend-ramp {
+  display: flex;
+  height: 10px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.legend-ramp span {
+  flex: 1 1 0;
+}
+
+.legend-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--nb-ink-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Měřítko a atribuce
+   -------------------------------------------------------------------------- */
 
 .leaflet-control-scale {
-	margin-top: 3.4em;
+  margin-bottom: 6px !important;
 }
+
+.leaflet-control-scale-line {
+  padding: 2px 8px 3px;
+  border-radius: var(--nb-radius-sm);
+  border: 1px solid var(--nb-ring);
+  border-top: none;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--nb-ink-muted);
+  box-shadow: var(--nb-shadow);
+}
+
+.leaflet-control-scale-line:not(:first-child) {
+  border-top: 1px solid var(--nb-hairline);
+  margin-top: 2px;
+}
+
+.leaflet-control-attribution {
+  padding: 2px 8px 3px;
+  border-radius: var(--nb-radius-sm);
+  font-size: 10px;
+  color: var(--nb-ink-muted);
+  box-shadow: none;
+}
+
+.leaflet-control-attribution a {
+  color: var(--nb-accent-strong);
+  text-decoration: none;
+}
+
+.leaflet-control-attribution a:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Vektory na mapě
+   -------------------------------------------------------------------------- */
 
 path.leaflet-interactive:focus {
-    outline: none;
-}
-
-.leaflet-popup-content
-{
-    text-align: center;
-}
-
-.info {
-    padding: 6px 8px;
-    font: 14px/16px Arial, Helvetica, sans-serif;
-    background: white;
-    background: rgba(255,255,255,0.8);
-    box-shadow: 0 0 15px rgba(0,0,0,0.2);
-    border-radius: 5px;
-}
-
-.info h4 {
-    margin: 0 0 5px;
-    color: #777;
-}
-
-.legend {
-    line-height: 18px;
-    color: #555;
-}
-
-.legend i {
-    width: 18px;
-    height: 18px;
-    float: left;
-    margin-right: 8px;
-    opacity: 0.7;
+  outline: none;
 }
 
 .katastralni-label {
-    font-size: 14px;
-    text-shadow: 1px 1px 2px black;
-    color: #0AFFF5;
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0;
-    border-radius: 0;
-    pointer-events: none;
+  font-family: var(--nb-font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--nb-vector);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.55);
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.katastralni-label::before {
+  display: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--nb-radius-sm);
+  box-shadow: var(--nb-shadow);
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font-family: var(--nb-font);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Malé displeje
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .leaflet-control-layers {
+    width: calc(100vw - 2 * var(--nb-gap) - 52px);
+    max-width: 272px;
+  }
+
+  .leaflet-control-layers-list {
+    max-height: 45vh;
+  }
+
+  .dynamic-wms-legend {
+    width: 190px;
+  }
+
+  .legend-content {
+    max-height: 30vh;
+  }
+
+  .nb-logo img {
+    width: 104px;
+  }
 }

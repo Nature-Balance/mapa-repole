@@ -12,21 +12,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-  <!-- 2. Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    crossorigin="" />
-
-  <!-- 3. GeoRaster (Parses TIFFs) -->
+  <!-- 2. GeoRaster (Parses TIFFs) -->
   <script src="./src/georaster.browser.bundle.min.js"></script>
 
-  <!-- 4. GeoRaster Leaflet Plugin (Depends on Leaflet AND GeoRaster) -->
+  <!-- 3. GeoRaster Leaflet Plugin (Depends on Leaflet AND GeoRaster) -->
   <script src="./src/georaster-layer-for-leaflet.min.js"></script>
 
-  <!-- 5. Grouped Layer Control plugin (Depends on Leaflet) -->
+  <!-- 4. Grouped Layer Control plugin (Depends on Leaflet) -->
   <link rel="stylesheet" href="./src/leaflet.groupedlayercontrol.css" />
   <script src="./src/leaflet.groupedlayercontrol.js"></script>
 
-  <!-- 6. Custom Styles -->
+  <!-- 5. Custom Styles (must win over Leaflet + plugin defaults) -->
   <link rel="stylesheet" type="text/css" href="./src/style.css">
 </head>
 

@@ -3,11 +3,19 @@ var map = L.map('map').setView([48.802255, 16.96000], 14); // Hrušky
 // Array to track all dynamically loaded TIFFs
 var allRasterLayers = [];
 
+// Ikony (inline SVG, ať se nečeká na Font Awesome)
+var icons = {
+    layers: '<svg class="nb-panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5 2.5 6.5 10 10.5l7.5-4z"/><path d="m2.5 10 7.5 4 7.5-4"/><path d="m2.5 13.5 7.5 4 7.5-4"/></svg>',
+    chevron: '<svg class="nb-panel-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg>',
+    chevronSmall: '<svg class="nb-group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg>',
+    chevronLegend: '<svg class="legend-toggle-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg>'
+};
+
 //Logo
 var logo = L.control({ position: 'topleft' });
 logo.onAdd = function (map) {
-    var div = L.DomUtil.create('div', 'info');
-    div.innerHTML = '<img src="./src/NB_horizontalni_Black.svg" alt="Logo" size="50" style="width: 150px; height: auto; margin: 5px;"/>';
+    var div = L.DomUtil.create('div', 'nb-panel nb-logo');
+    div.innerHTML = '<img src="./src/NB_horizontalni_Black.svg" alt="Nature Balance"/>';
     return div;
 };
 logo.addTo(map);
@@ -251,6 +259,63 @@ var layerControl = L.control.groupedLayers(baseMaps, groupedOverlays, {
     exclusiveGroups: ["RYPE"]
 }).addTo(map);
 
+// Skupiny, které mají být po startu sbalené (klíč = název skupiny)
+var foldedGroups = { "Podkladové vrstvy": true };
+
+// Zvýraznění zapnutých vrstev. Čte se stav inputu, který sedí jak po překreslení
+// panelu (_update nastaví checked podle mapy), tak po kliknutí uživatele.
+function markActiveLayers() {
+    var inputs = layerControl._container.querySelectorAll('.leaflet-control-layers-selector');
+    for (var i = 0; i < inputs.length; i++) {
+        inputs[i].parentNode.classList.toggle('nb-active', inputs[i].checked);
+    }
+}
+
+// Hlavička panelu a sbalovací skupiny.
+function decoratePanel() {
+    var container = layerControl._container;
+
+    // Hlavička se vkládá jen jednou - _update() přepisuje pouze obsah formuláře
+    if (!container.querySelector('.nb-panel-header')) {
+        var header = L.DomUtil.create('div', 'nb-panel-header');
+        header.innerHTML = icons.layers + '<span class="nb-panel-title">Vrstvy</span>' + icons.chevron;
+        header.title = 'Skrýt / zobrazit panel vrstev';
+        container.insertBefore(header, container.firstChild);
+        L.DomEvent.on(header, 'click', function () {
+            container.classList.toggle('nb-collapsed');
+        });
+    }
+
+    // Skupiny naopak _update() vytváří znovu, takže se dekorují pokaždé
+    var groups = container.querySelectorAll('.leaflet-control-layers-group');
+    Array.prototype.forEach.call(groups, function (group) {
+        var label = group.querySelector('.leaflet-control-layers-group-label');
+        var name = label && label.querySelector('.leaflet-control-layers-group-name');
+        if (!name) return;
+
+        var groupName = name.textContent;
+        label.insertAdjacentHTML('beforeend', icons.chevronSmall);
+        label.title = 'Sbalit / rozbalit skupinu';
+
+        group.classList.toggle('nb-folded', !!foldedGroups[groupName]);
+
+        L.DomEvent.on(label, 'click', function () {
+            foldedGroups[groupName] = group.classList.toggle('nb-folded');
+        });
+    });
+
+    markActiveLayers();
+}
+
+var origLayerControlUpdate = layerControl._update;
+layerControl._update = function () {
+    origLayerControlUpdate.call(this);
+    decoratePanel();
+};
+
+decoratePanel();
+map.on('layeradd layerremove', markActiveLayers);
+
 // funkce pro načtení geojson souboru
 function loadGeoJSON(url, layer) {
     fetch(url)
@@ -303,8 +368,13 @@ var StableGeoRasterLayer = GeoRasterLayer.extend({
     }
 });
 
-// Společná tovární funkce pro rastrové vrstvy
-function createRasterLayer(url, layerName, pixelValuesToColorFn, label) {
+// Barevné škály rastrů
+var EVI_COLORS = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
+var YIELD_COLORS = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
+
+// Společná tovární funkce pro rastrové vrstvy.
+// `legend` popisuje škálu pro legendu: { colors, min, max, unit }
+function createRasterLayer(url, layerName, pixelValuesToColorFn, legend, label) {
     fetch(url)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => parseGeoraster(arrayBuffer))
@@ -318,6 +388,7 @@ function createRasterLayer(url, layerName, pixelValuesToColorFn, label) {
                     return pixelValuesToColorFn(pixelValues[0], georaster);
                 }
             });
+            tiffLayer.nbLegend = legend;
             allRasterLayers.push(tiffLayer);
             // INJECT DIRECTLY INTO THE MENU UNDER "RYPE"
             layerControl.addOverlay(tiffLayer, layerName, "RYPE");
@@ -325,32 +396,32 @@ function createRasterLayer(url, layerName, pixelValuesToColorFn, label) {
         .catch(error => console.error(`Error loading ${label}:`, error));
 }
 
+// Zařazení hodnoty do jednoho z osmi barevných kroků
+function rampColor(ratio, colors) {
+    var index = Math.floor(Math.max(0, Math.min(1, ratio)) * colors.length);
+    if (index >= colors.length) index = colors.length - 1;
+    return colors[index];
+}
+
 // 1. FUNCTION FOR EVI
 function createEVIlayer(url, layerName) {
     createRasterLayer(url, layerName, function (val, georaster) {
         if (val === georaster.noDataValue || isNaN(val)) return null;
 
-        var ratio = Math.max(0, Math.min(1, val));
-        var colors = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
-        var index = Math.floor(ratio * 8);
-        if (index >= 8) index = 7;
-        return colors[index];
-    }, 'EVI');
+        return rampColor(val, EVI_COLORS);
+    }, { colors: EVI_COLORS, min: 0, max: 1, unit: '' }, 'EVI');
 }
 
 // 2. FUNCTION FOR YIELD
 function createYieldLayer(url, layerName) {
+    var min = 78;
+    var max = 115;
+
     createRasterLayer(url, layerName, function (val, georaster) {
         if (val === georaster.noDataValue || isNaN(val)) return null;
 
-        var min = 78;
-        var max = 115;
-        var ratio = Math.max(0, Math.min(1, (val - min) / (max - min)));
-        var colors = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
-        var index = Math.floor(ratio * 8);
-        if (index >= 8) index = 7;
-        return colors[index];
-    }, 'Yield');
+        return rampColor((val - min) / (max - min), YIELD_COLORS);
+    }, { colors: YIELD_COLORS, min: min, max: max, unit: '' }, 'Yield');
 }
 
 createYieldLayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/feature_1_yield_2018_2025.tif', 'Average yield 2018-2025');
@@ -433,18 +504,10 @@ function toggleLegend(layerName, legendName) {
 var wmsLegend = L.control({ position: 'bottomleft' });
 
 var activeWmsLayers = {};
-var isLegendMinimized = false;
 
 wmsLegend.onAdd = function (map) {
     // Create the container div
     this._div = L.DomUtil.create('div', 'dynamic-wms-legend');
-
-    // Style the container
-    this._div.style.backgroundColor = 'white';
-    this._div.style.padding = '10px';
-    this._div.style.borderRadius = '5px';
-    this._div.style.maxHeight = '400px'; // Prevent it from getting too tall
-    this._div.style.overflowY = 'hidden';
     this._div.style.display = 'none';    // Hide it initially
 
     // Stop map clicks from falling through the legend box
@@ -453,32 +516,14 @@ wmsLegend.onAdd = function (map) {
 
     // Create a Clickable Header
     var header = L.DomUtil.create('div', 'legend-header', this._div);
-    header.style.padding = '8px 10px';
-    header.style.cursor = 'pointer';
-    header.style.fontWeight = 'bold';
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.innerHTML = '<span>Legenda</span><span id="legend-toggle-icon" style="margin-left:20px; font-size:18px; line-height:1;">&minus;</span>';
+    header.innerHTML = '<span>Legenda</span>' + icons.chevronLegend;
 
     // Create the Content Area (where the images will go)
     this._contentDiv = L.DomUtil.create('div', 'legend-content', this._div);
-    this._contentDiv.style.padding = '0 10px 10px 10px';
-    this._contentDiv.style.maxHeight = '400px';
-    this._contentDiv.style.overflowY = 'auto';
 
     // Toggle Collapse/Expand on header click
     L.DomEvent.on(header, 'click', function () {
-        isLegendMinimized = !isLegendMinimized;
-        var icon = document.getElementById('legend-toggle-icon');
-
-        if (isLegendMinimized) {
-            this._contentDiv.style.display = 'none';
-            icon.innerHTML = '&#43;'; // Plus symbol
-        } else {
-            this._contentDiv.style.display = 'block';
-            icon.innerHTML = '&minus;'; // Minus symbol
-        }
+        this._div.classList.toggle('nb-minimized');
     }, this);
 
     return this._div;
@@ -486,30 +531,46 @@ wmsLegend.onAdd = function (map) {
 
 wmsLegend.addTo(map);
 
+// Legenda WMS vrstvy - obrázek ze služby GetLegendGraphic
+function wmsLegendHtml(layer) {
+    // Safely handle the base URL (check if it already has a '?' query string)
+    var separator = layer._url.indexOf('?') === -1 ? '?' : '&';
+
+    // Auto-construct the GetLegendGraphic URL using the layer's own properties
+    var legendUrl = layer._url + separator +
+        "SERVICE=WMS&REQUEST=GetLegendGraphic" +
+        "&VERSION=" + (layer.wmsParams.version || "1.3.0") +
+        "&SLD_VERSION=1.1.0" +
+        "&FORMAT=image/png" +
+        "&LAYER=" + layer.wmsParams.layers;
+
+    return '<img src="' + legendUrl + '" alt="Legenda">';
+}
+
+// Legenda rastru RYPE - barevná škála s krajními hodnotami
+function rampLegendHtml(legend) {
+    var swatches = legend.colors.map(function (color) {
+        return '<span style="background:' + color + '"></span>';
+    }).join('');
+
+    return '<div class="legend-ramp">' + swatches + '</div>' +
+        '<div class="legend-scale"><span>' + legend.min + legend.unit +
+        '</span><span>' + legend.max + legend.unit + '</span></div>';
+}
+
 // Function to redraw the legend box based on active layers
 function updateLegendBox() {
     var html = '';
     var hasLegends = false;
 
-    // Loop through all currently active WMS layers
+    // Loop through all currently active layers that have a legend
     for (var id in activeWmsLayers) {
         var layerInfo = activeWmsLayers[id];
         var layer = layerInfo.layer;
 
-        // Safely handle the base URL (check if it already has a '?' query string)
-        var separator = layer._url.indexOf('?') === -1 ? '?' : '&';
-
-        // Auto-construct the GetLegendGraphic URL using the layer's own properties
-        var legendUrl = layer._url + separator +
-            "SERVICE=WMS&REQUEST=GetLegendGraphic" +
-            "&VERSION=" + (layer.wmsParams.version || "1.3.0") +
-            "&SLD_VERSION=1.1.0" +
-            "&FORMAT=image/png" +
-            "&LAYER=" + layer.wmsParams.layers;
-
-        // Build the HTML for this specific legend
-        html += '<div style="margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 5px;">'; html += '<strong>' + layerInfo.name + '</strong><br>';
-        html += '<img src="' + legendUrl + '" alt="Legend" style="max-width: 100%; margin-top: 5px;">';
+        html += '<div class="legend-item">';
+        html += '<div class="legend-item-title">' + layerInfo.name + '</div>';
+        html += layer.nbLegend ? rampLegendHtml(layer.nbLegend) : wmsLegendHtml(layer);
         html += '</div>';
 
         hasLegends = true;
@@ -528,8 +589,8 @@ function updateLegendBox() {
 
 // When a layer is turned on via the layer control
 map.on('overlayadd', function (e) {
-    // 1. LEGEND LOGIC: Check if it is a WMS layer
-    if (e.layer.wmsParams) {
+    // 1. LEGEND LOGIC: WMS vrstva nebo rastr RYPE s vlastní škálou
+    if (e.layer.wmsParams || e.layer.nbLegend) {
         activeWmsLayers[L.stamp(e.layer)] = {
             layer: e.layer,
             name: e.name
@@ -550,7 +611,7 @@ map.on('overlayadd', function (e) {
 
 // When a layer is turned off
 map.on('overlayremove', function (e) {
-    if (e.layer.wmsParams) {
+    if (e.layer.wmsParams || e.layer.nbLegend) {
         // Remove it from our active list
         delete activeWmsLayers[L.stamp(e.layer)];
         updateLegendBox();
