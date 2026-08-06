@@ -263,66 +263,84 @@ function getColor(property) {
                                         '#ffffff';
 };
 
-// 1. FUNCTION FOR EVI
-function createEVIlayer(url, layerName) {
+// Vlastní pane pro rastry - nad WMS vrstvami (tilePane, 200), pod vektory (overlayPane, 400)
+map.createPane('rasterPane');
+map.getPane('rasterPane').style.zIndex = 350;
+map.getPane('rasterPane').style.pointerEvents = 'none';
+
+// GeoRasterLayer 1.4.1 volá done() synchronně uvnitř createTile(), tedy dřív než
+// Leaflet dlaždici zaregistruje do _tiles. GridLayer._tileReady proto skončí hned
+// na `if (!tile) return` a dlaždice nikdy nedostane příznak loaded/active.
+// Důsledek: fade-in zamrzne na náhodné průhlednosti a _pruneTiles() nikdy neuklidí
+// staré úrovně zoomu - na mapě zůstanou 2-3 kopie rastru přes sebe a každá si
+// při zoomu animuje vlastní transform. To je to "cukání".
+// Odložení done() o jeden tick vrátí dlaždice do normálního životního cyklu.
+var StableGeoRasterLayer = GeoRasterLayer.extend({
+    initialize: function (options) {
+        // Cache dlaždic drží GeoRasterLayer na prototypu a klíčuje ji pouze
+        // souřadnicemi dlaždice a rozlišením, bez identity vrstvy. Všechny
+        // instance si tak navzájem podstrkávají cizí dlaždice - přepnutí na
+        // jinou vrstvu RYPE pak vykreslí data té předchozí. Vlastní cache
+        // pro každou instanci.
+        this.cache = {};
+        GeoRasterLayer.prototype.initialize.call(this, options);
+    },
+
+    createTile: function (coords, done) {
+        return GeoRasterLayer.prototype.createTile.call(this, coords, function (error, tile) {
+            setTimeout(function () { done(error, tile); }, 0);
+        });
+    }
+});
+
+// Společná tovární funkce pro rastrové vrstvy
+function createRasterLayer(url, layerName, pixelValuesToColorFn, label) {
     fetch(url)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => parseGeoraster(arrayBuffer))
         .then(georaster => {
-            var tiffLayer = new GeoRasterLayer({
+            var tiffLayer = new StableGeoRasterLayer({
                 georaster: georaster,
                 opacity: 0.8,
                 resolution: 256,
-                pane: 'overlayPane',
-                keepBuffer: 0,
+                pane: 'rasterPane',
                 pixelValuesToColorFn: function (pixelValues) {
-                    var val = pixelValues[0];
-                    if (val === georaster.noDataValue || isNaN(val)) return null;
-
-                    var ratio = Math.max(0, Math.min(1, val));
-                    var colors = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
-                    var index = Math.floor(ratio * 8);
-                    if (index >= 8) index = 7;
-                    return colors[index];
+                    return pixelValuesToColorFn(pixelValues[0], georaster);
                 }
             });
             allRasterLayers.push(tiffLayer);
             // INJECT DIRECTLY INTO THE MENU UNDER "RYPE"
             layerControl.addOverlay(tiffLayer, layerName, "RYPE");
         })
-        .catch(error => console.error(`Error loading EVI:`, error));
+        .catch(error => console.error(`Error loading ${label}:`, error));
+}
+
+// 1. FUNCTION FOR EVI
+function createEVIlayer(url, layerName) {
+    createRasterLayer(url, layerName, function (val, georaster) {
+        if (val === georaster.noDataValue || isNaN(val)) return null;
+
+        var ratio = Math.max(0, Math.min(1, val));
+        var colors = ['#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#e6f598', '#abdda4', '#66c2a5', '#3288bd'];
+        var index = Math.floor(ratio * 8);
+        if (index >= 8) index = 7;
+        return colors[index];
+    }, 'EVI');
 }
 
 // 2. FUNCTION FOR YIELD
 function createYieldLayer(url, layerName) {
-    fetch(url)
-        .then(response => response.arrayBuffer())
-        .then(arrayBuffer => parseGeoraster(arrayBuffer))
-        .then(georaster => {
-            var tiffLayer = new GeoRasterLayer({
-                georaster: georaster,
-                opacity: 0.8,
-                resolution: 256,
-                pane: 'overlayPane',
-                keepBuffer: 0,
-                pixelValuesToColorFn: function (pixelValues) {
-                    var val = pixelValues[0];
-                    if (val === georaster.noDataValue || isNaN(val)) return null;
+    createRasterLayer(url, layerName, function (val, georaster) {
+        if (val === georaster.noDataValue || isNaN(val)) return null;
 
-                    var min = 78;
-                    var max = 115;
-                    var ratio = Math.max(0, Math.min(1, (val - min) / (max - min)));
-                    var colors = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
-                    var index = Math.floor(ratio * 8);
-                    if (index >= 8) index = 7;
-                    return colors[index];
-                }
-            });
-            allRasterLayers.push(tiffLayer);
-            // INJECT DIRECTLY INTO THE MENU UNDER "RYPE"
-            layerControl.addOverlay(tiffLayer, layerName, "RYPE");
-        })
-        .catch(error => console.error(`Error loading Yield:`, error));
+        var min = 78;
+        var max = 115;
+        var ratio = Math.max(0, Math.min(1, (val - min) / (max - min)));
+        var colors = ['#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e'];
+        var index = Math.floor(ratio * 8);
+        if (index >= 8) index = 7;
+        return colors[index];
+    }, 'Yield');
 }
 
 createYieldLayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/feature_1_yield_2018_2025.tif', 'Average yield 2018-2025');
