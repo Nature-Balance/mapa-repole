@@ -205,6 +205,12 @@ var ku = L.geoJSON(null, {
     }
 }).addTo(map);
 
+// Přepínač vrstev
+var baseMaps = {
+    "OpenStreetMaps": osmLayer,
+    "Ortofoto": orthoLayer
+};
+
 var groupedOverlays = {
     "Podkladové vrstvy": {
         "Vybraná parcela": parcela,
@@ -333,12 +339,6 @@ createEVIlayer('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/mai
 // Load the GeoJSON data into the initialized layers
 loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/ku.geojson', ku);
 loadGeoJSON('https://raw.githubusercontent.com/DajanaSnopkova/mapa-repole/main/data/parcela.geojson', parcela);
-
-// Přepínač vrstev
-var baseMaps = {
-    "OpenStreetMaps": osmLayer,
-    "Ortofoto": orthoLayer
-};
 
 /*
 var overlayMaps = {
